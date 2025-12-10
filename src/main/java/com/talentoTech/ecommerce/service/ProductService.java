@@ -1,157 +1,84 @@
 package com.talentoTech.ecommerce.service;
 
-import com.talentoTech.ecommerce.model.Product;
+import com.talentoTech.ecommerce.entity.Product;
 import com.talentoTech.ecommerce.repository.ProductRepository;
+import com.talentoTech.ecommerce.utils.ProductUtils;
+import jakarta.validation.ValidationException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
-//springboot lo carga en su almacén de "beans"
+import static com.talentoTech.ecommerce.utils.ProductUtils.isEmpty;
+
+
 @Service
 public class ProductService {
 
-    private ProductRepository repository;
+    private final ProductRepository repository;
 
-    //inyección de dependencia y delegacion de tareas anotando con @repository a ProductRepository.java
-    //springboot al instanciar repository -constructor mediante, creó todos los productos iniciales
-    public ProductService(ProductRepository repository) {
-        this.repository = repository;
+    private final ProductUtils productUtils;
 
+    ProductService(ProductRepository productRepository, ProductUtils productUtils) {
+        this.repository = productRepository;
+        this.productUtils = productUtils;
     }
 
     public Product crearProducto(Product producto) {
-        System.out.println("Creando Nuevo Product");
-        return this.repository.guardarProducto(producto);
 
-    }
-/*
-    public ArrayList<Product> listarProductos() {
-        return this.repository.obtenerProductos();
-    }
-
- */
-
-    public ArrayList<Product> listarProductos(String nombre, double precio) {
-
-        if (!nombre.isBlank() && precio > 0.00) {
-            return this.repository.obtenerProductosPorNombreYPrecio(nombre, precio);
+        if(productUtils.validarDatosProducto(producto)) {
+            //productSaveWithId
+            return this.repository.save(producto);
         }
-        if(!nombre.isBlank()) {
-            return this.repository.obtenerProductosPorNombre(nombre);
-        }
-        if(precio > 0) {
-            return this.repository.obtenerProductosPorPrecio(precio);
-        }
-        return this.repository.obtenerProductos();
+        System.out.println("En la creación, encontró algún error de datos " + producto);
+        //si encontró un error de validación envío el producto recibido
+        return producto;
     }
 
-/*
-
-
-
-    public static void buscarProductPorNombre(ArrayList<Product> products) {
-        System.out.println("Ingrese un nombre de un producto: ");
-        String busqueda = entrada.nextLine();
-        ArrayList<Product> productosEncontrados = new ArrayList<>();
-
-        for (Product product : products) {
-            if (estaIncluido(product.getNombre(), busqueda)) {
-                productoEncontrados.add(producto);
-            }
+    public Product obtenerProductoPorId(Integer id) {
+        Optional<Product> productoOptional = this.repository.findById(id);
+        if(productoOptional.isEmpty()) {
+            throw new RuntimeException("Producto con Id: " + id + " no encontrado");
         }
-
-        listarProducts(productoEncontrados);
+        return productoOptional.get();
     }
 
-*/
-    public Product editarNombreProducto(int id, Product dataProducto) {
-
-        //Validaciones:
-        if(dataProducto.getNombre() == null || dataProducto.getNombre().isBlank()) {
-            System.out.println("en la modificacion no se informó el nuevo nombre");
-            return null;
+    public List<Product> devolverTodosLosProductos(String name, String categoria) {
+        if(!name.isBlank() && !categoria.isBlank()) {
+            return this.repository.findByNameContainingIgnoreCaseAndCategoryContainingIgnoreCase(name, categoria);
         }
-
-        Product productoParaModificar = this.repository.buscarProductoPorId(id);
-
-        if (productoParaModificar == null) {
-            System.out.println("No se encontró el producto a modificar.");
-            return null;
+        if(!name.isBlank()) {
+            return this.repository.findByNameContainingIgnoreCase(name);
         }
-        //Fin validaciones
-
-        productoParaModificar.setNombre(dataProducto.getNombre());
-
-        this.repository.actualizarProducto(productoParaModificar);
-
-        return productoParaModificar;
-
-    }
-
-
-    public Product borrarProducto(int id) {
-
-        Product productoParaBorrar = this.repository.buscarProductoPorId(id);
-
-        if (productoParaBorrar == null) {
-            System.out.println("No se encuentra el producto a borrar " + id);
-            return null;
+        if(!categoria.isBlank()) {
+            return this.repository.findByCategoryContainingIgnoreCase(categoria);
         }
-        // aca borramos el producto
-        this.repository.borrarProducto(productoParaBorrar);
-        System.out.println("Se borró el producto " + id + " " + productoParaBorrar.getNombre());
-        return productoParaBorrar;
+        return this.repository.findAll();
     }
-/*
-    public static void filtroPorPrecio(List<Product> products) {
-        double precioFiltro = entrada.nextDouble();
 
-        ArrayList<Product> productsFiltrados = new ArrayList<>();
-
-        for (Product producto : products) {
-            if (producto.getPrecio() <= precioFiltro) {
-                productsFiltrados.add(producto);
-            }
+    public Product modificarProducto(Integer id, Product prodNuevosDatos) {
+        Optional<Product> prodOptional = this.repository.findById(id);
+        if(prodOptional.isEmpty()) {
+            throw new RuntimeException("No se encuentra el producto con Id: " + id);
         }
-
-        listarProducts(productsFiltrados);
-    }
-
-    // UTILIDADES
-    // Busqueda por id - ahora mismo solo funciona con el indice, en el futuro se va a cambiar
-    public static Product obtenerProductPorId(List<Product> products) {
-
-        System.out.println("Ingrese el id del producto: ");
-        int idBusqueda = entrada.nextInt();
-
-        for (Product producto : products) {
-            if (producto.coincideId(idBusqueda)) {
-                return producto;
-            }
+        String nombre = this.productUtils.quitarEspacios(prodNuevosDatos.getName());
+        if(productUtils.validaLongName(nombre)) {
+            System.out.println("El nuevo nombre del Producto no cumple con el estándar definidos");
         }
-
-        System.out.println("No pudimos encontrar el producto con el id: " + idBusqueda);
-        return null; // el null representa que no encontramos el producto
+        prodNuevosDatos = prodOptional.get();
+        prodNuevosDatos.setName(nombre);
+        return this.repository.save(prodNuevosDatos);
     }
 
-    public static boolean estaIncluido(String nombreCompleto, String nombreParcial) {
-        String nombreCompletoFormateado = formatoBusqueda(nombreCompleto);
-
-        return nombreCompletoFormateado.contains(formatoBusqueda(nombreParcial));
-    }
-
-    public static String formatoBusqueda(String texto) {
-        return texto.trim().toLowerCase();
-    }
-
-    public static void pausa() {
-        System.out.println("Pulse ENTER para continuar...");
-        entrada = new Scanner(System.in);
-        entrada.nextLine();
-        for (int i = 0; i < 20; ++i) {
-            System.out.println();
+    public Product eliminarProducto(Integer id) {
+        Optional<Product> optionalProduct = this.repository.findById(id);
+        if(optionalProduct.isEmpty()) {
+            throw new RuntimeException("No se encuentra el producto a eliminar " + id);
         }
+        Product productoAEliminar = optionalProduct.get();
+        this.repository.delete(productoAEliminar);
+        return productoAEliminar;
     }
-
-*/
 }
+
+

@@ -1,20 +1,23 @@
 package com.talentoTech.ecommerce.controller;
 
-import com.talentoTech.ecommerce.model.Product;
+import com.talentoTech.ecommerce.entity.Product;
 import com.talentoTech.ecommerce.service.ProductService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-//con RestController hacemos que esta clase se convierta realmente un controlador
-// de las peticiones http que van a recibir desde el cliente
+//con @RestController hacemos que esta clase se convierta realmente en un controlador
+//de las peticiones http que recibimos desde el cliente
+
 @RestController
 public class ProductController {
 
-    private ProductService service;
+    private final ProductService service;
 
-    //hacemos inyecciòn de dependencia y delegacion de tareas
-    //anotando como @service a ProductService.java
+    //Defino el CONSTRUCTOR:
+    //---------------------
+    //hacemos inyecciòn de dependencia y delegación de tareas
+    //debo anotar con @service a ProductService.java
     public ProductController (ProductService service) {
         this.service = service;
     }
@@ -26,60 +29,52 @@ public class ProductController {
         return "hola mundo desde spring boot";
     }
 
+    //creacion de un producto:
     @PostMapping("/products")
     public Product crearProducto(@RequestBody Product product) {
         return this.service.crearProducto(product);
     }
 
-    //ArrayList
-    //formas de enviar datos: path variable, tambièn con ?nombre="fadfaf"&precio="123" y se recuperan con requestParam
-    @GetMapping("/products")
-    public List<Product> listarProductos(
-               @RequestParam(required = false, defaultValue = "") String nombre,
-               @RequestParam(required = false, defaultValue = "0") Double precio) {
-        //return List.of(nombre, String.valueOf(precio));
-        return this.service.listarProductos(nombre, precio);
-    }
-/*
-    @GetMapping("/products")
-    public List<String> listarProductos(@RequestParam String nombre) {
-        return List.of("Producto1", nombre);
+    //Obtención de un producto por ID:
+    //--------------------------------
+    @GetMapping("/products/{id}")
+    public Product obtenerProducto(@PathVariable Integer id) {
+        return this.service.obtenerProductoPorId(id);
     }
 
- */
-/*
-    @GetMapping("/products/precio")
-    public List<String> listarProductos(@RequestParam int precio) {
-        return List.of("Producto1", String.valueOf(precio));
-    }
-    */
-
-    //fix
-    /*
+    //Obtención de una lista de productos:
+    //------------------------------------
     @GetMapping("/products")
-    public List<String> buscarProductoPorNombre() {
-        return List.of("producto1");
+    public List<Product> obtenerTodosLosProductos(
+            @RequestParam(required = false, defaultValue = "") String name,
+            @RequestParam(required = false, defaultValue = "") String category ) {
+        return this.service.devolverTodosLosProductos(name, category);
     }
-    */
+
+    //Modificamos datos de un Producto identificando por su Id:
+    //--------------------------------------------------------
     @PutMapping("/products/{id}")
     public Product editarProducto(@PathVariable(name = "id") int productId,
                                   @RequestBody Product prodAModificar) {
 
-        return this.service.editarNombreProducto(productId, prodAModificar);
+        return this.service.modificarProducto(productId, prodAModificar);
 
     }
 
+    //Eliminamos un Producto identificándolo por su Id:
+    //------------------------------------------------
     @DeleteMapping("/products/{id}")
     public Product borrarProducto(@PathVariable int id) {
 
-        return this.service.borrarProducto(id);
+        return this.service.eliminarProducto(id);
 
     }
 }
-//GET para obtener infrmaciòn del servidor. listado, obtener producto por nombre
-//POST para crear un producto p.e.
-//PUT editar el producto
-//PATCH para hacer modificaciones, a veces se utiliza el post igual
-//DELETE
+
+//GET para obtener información de un recurso. También podemos Obtener una lista (lista de productos p.e.)
+//POST para crear un recurso (crear un producto p.e.)
+//PUT  para editar un recurso
+//PATCH para hacer modificaciones en un recurso, a veces se utiliza el post igual
+//DELETE para eliminar un recurso
 
 
